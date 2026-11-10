@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E-Presensi Guru & Staff - SMP NURAENI</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- html2pdf.js for printing reports -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- PWA Web App Manifest inline -->
+  <link rel="manifest" id="manifest-placeholder">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+    }
+    .dark .glass-panel {
+      background: rgba(17, 24, 39, 0.85);
+      border: 1px solid rgba(55, 65, 81, 0.5);
+    }
+    /* Hide scrollbars for clean UI */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased">
+
+  <!-- Dual Mode Preview Alert Banner (Only Visible in IS_PREVIEW mode) -->
+  <div id="preview-banner" class="hidden bg-amber-500 text-white text-xs py-1 px-4 text-center font-medium shadow-md sticky top-0 z-50 flex items-center justify-between">
+    <div class="container mx-auto flex items-center justify-between">
+      <span>⚡ <strong>MODE PREVIEW:</strong> Menggunakan Data Simulasi (In-Memory). Dibuat untuk pengujian UI/UX tanpa Firebase Firestore.</span>
+      <span class="bg-amber-700 text-white px-2 py-0.5 rounded text-[10px]">SMP NURAENI</span>
+    </div>
+  </div>
+
+  <div id="app" class="flex-1 flex flex-col md:flex-row min-h-screen relative overflow-hidden">
+    <!-- Sidebar Navigation for Desktop -->
+    <aside id="sidebar" class="hidden md:flex flex-col w-64 glass-panel border-r z-30 transition-all duration-300">
+      <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+        <div id="sidebar-logo-container" class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-bold text-xl shadow-md overflow-hidden">
+          <img id="sidebar-logo-img" src="" alt="Logo" class="w-full h-full object-cover hidden">
+          <span id="sidebar-logo-fallback">SN</span>
+        </div>
+        <div>
+          <h1 id="sidebar-school-name" class="font-bold text-sm tracking-tight leading-tight">SMP NURAENI</h1>
+          <p id="sidebar-user-role" class="text-xs text-brand-600 dark:text-brand-400 font-medium capitalize">Administrator</p>
+        </div>
+      </div>
+
+      <!-- Navigation Links Container -->
+      <nav id="desktop-nav-menu" class="flex-1 p-4 space-y-1 overflow-y-auto no-scrollbar">
+        <!-- Rendered dynamically based on Role -->
+      </nav>
+
+      <!-- User Profile Summary & Logout -->
+      <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <div class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-semibold" id="sidebar-user-avatar">
+            A
+          </div>
+          <div class="truncate">
+            <p id="sidebar-user-name" class="text-xs font-semibold truncate">Admin Utama</p>
+            <p id="sidebar-user-sub text-[10px]" class="text-slate-500 truncate text-[10px]" id="sidebar-user-id">admin@nuraeni.sch.id</p>
+          </div>
+        </div>
+        <button onclick="handleLogout()" class="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition" title="Logout">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col min-w-0 pb-20 md:pb-6 overflow-y-auto">
+      <!-- Top Bar Mobile -->
+      <header class="md:hidden glass-panel border-b p-4 flex items-center justify-between sticky top-0 z-20">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm">
+            SN
+          </div>
+          <div>
+            <h1 class="font-bold text-sm">SMP NURAENI</h1>
+            <p id="mobile-user-role" class="text-[11px] text-brand-600 font-medium capitalize">Role</p>
+          </div>
+        </div>
+        <button onclick="handleLogout()" class="p-2 text-slate-500 hover:text-red-600">
+          <i data-lucide="log-out" class="w-5 h-5"></i>
+        </button>
+      </header>
+
+      <!-- Dynamic Page Container -->
+      <div id="main-content" class="p-4 md:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <!-- Content inserted via JavaScript Router -->
+      </div>
+    </main>
+
+    <!-- Bottom Navigation Bar for Mobile -->
+    <nav id="mobile-nav-bar" class="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t z-40 flex justify-around items-center py-2 px-1">
+      <!-- Rendered dynamically -->
+    </nav>
+  </div>
+
+  <!-- Global Modal Container -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div id="modal-container" class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden transition-all transform">
+      <!-- Dynamic Modal Content -->
+    </div>
+  </div>
+
+  <!-- Firebase Modular Imports -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // ==========================================
+    // SAKLAR MODE DEPLOYMENT & KONFIGURASI
+    // ==========================================
+    const IS_PREVIEW = false; // Ubah ke FALSE saat deploy produksi ke Firebase Firestore
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyCQdGQ0UuXYC41Qs6W-cmxHSEhJtbiSz2Q",
+  authDomain: "epresensi-guru-dan-staff.firebaseapp.com",
+  projectId: "epresensi-guru-dan-staff",
+  storageBucket: "epresensi-guru-dan-staff.firebasestorage.app",
+  messagingSenderId: "203688385860",
+  appId: "1:203688385860:web:1d43eeb04b26929b8fcb11"
+    };
+
+    // Firebase References
+    let app, auth, db;
+    if (!IS_PREVIEW) {
+      try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+      } catch (err) {
+        console.error("Firebase init failed:", err);
+      }
+    }
+
+    // ==========================================
+    // DUMMY STATE (Hanya 1-2 sampel per koleksi untuk Mode Preview)
+    // ==========================================
+    const DUMMY_SCHOOL = {
+      nama_sekolah: "SMP NURAENI",
+      npsn: "20211988",
+      email: "info@smpnuraeni.sch.id",
+      website: "https://smpnuraeni.sch.id",
+      alamat: "Jl. Pendidikan No. 45, Kecamatan Cibiru, Kota Bandung",
+      nama_kepsek: "Drs. H. Mulyana, M.Pd.",
+      logo_url: ""
+    };
+
+    const DUMMY_GPS = {
+      lat: -6.917464,
+      lng: 107.619123,
+      radius_meter: 150
+    };
+
+    const DUMMY_USERS = [
+      { id: "u_admin", nuptk: "198001012005011001", nama: "Administrator Utama", email: "admin@nuraeni.sch.id", role: "admin", jk: "L", tempat_lahir: "Bandung", tgl_lahir: "1985-05-10", no_hp: "081234567890", jabatan: "Pengelola Sistem", pass: "admin123" },
+      { id: "u_kepsek", nuptk: "197203151998021002", nama: "Drs. H. Mulyana, M.Pd.", email: "kepsek@nuraeni.sch.id", role: "kepsek", jk: "L", tempat_lahir: "Sumedang", tgl_lahir: "1972-03-15", no_hp: "081398765432", jabatan: "Kepala Sekolah", pass: "kepsek123" },
+      { id: "u_guru1", nuptk: "199104122019032015", nama: "Siti Aminah, S.Pd.", email: "siti.aminah@nuraeni.sch.id", role: "guru", jk: "P", tempat_lahir: "Garut", tgl_lahir: "1991-04-12", no_hp: "085712344321", jabatan: "Guru Bahasa Indonesia", pass: "guru123" },
+      { id: "u_tendik1", nuptk: "199408222020011008", nama: "Ahmad Rizki, A.Md.", email: "ahmad.rizki@nuraeni.sch.id", role: "tendik", jk: "L", tempat_lahir: "Bandung", tgl_lahir: "1994-08-22", no_hp: "089611223344", jabatan: "Staf Tata Usaha", pass: "tendik123" }
+    ];
+
+    const DUMMY_ATTENDANCES = [
+      { id: "att_1", user_id: "u_guru1", nama: "Siti Aminah, S.Pd.", role: "guru", tanggal: getTodayDateString(), jam_masuk: "06:45:10", jam_pulang: "15:05:22", lat_masuk: -6.917460, lng_masuk: 107.619120, status: "Hadir", jarak_meter: 12 },
+      { id: "att_2", user_id: "u_tendik1", nama: "Ahmad Rizki, A.Md.", role: "tendik", tanggal: getTodayDateString(), jam_masuk: "07:15:00", jam_pulang: "", lat_masuk: -6.917450, lng_masuk: 107.619130, status: "Terlambat", jarak_meter: 25 }
+    ];
+
+    const DUMMY_SUBMISSIONS = [
+      { id: "sub_1", user_id: "u_guru1", nama: "Siti Aminah, S.Pd.", jenis: "Izin", tgl_mulai: getTodayDateString(), tgl_selesai: getTodayDateString(), keterangan: "Mengikuti seminar kurikulum merdeka", bukti_url: "", status: "Pending", approved_by: "" }
+    ];
+
+    const DUMMY_HOLIDAYS = [
+      { id: "hol_1", tanggal: "2026-08-17", keterangan: "HUT Kemerdekaan RI" },
+      { id: "hol_2", tanggal: "2026-12-25", keterangan: "Hari Raya Natal" }
+    ];
+
+    // ==========================================
+    // APP STATE MANAGEMENT
+    // ==========================================
+    let currentUser = null;
+    let currentView = 'dashboard';
+
+    // Application Memory Store
+    let state = {
+      school: { ...DUMMY_SCHOOL },
+      gps: { ...DUMMY_GPS },
+      users: [...DUMMY_USERS],
+      attendances: [...DUMMY_ATTENDANCES],
+      submissions: [...DUMMY_SUBMISSIONS],
+      holidays: [...DUMMY_HOLIDAYS]
+    };
+
+    // Helper: Date string YYYY-MM-DD
+    function getTodayDateString() {
+      const d = new Date();
+      return d.toISOString().split('T')[0];
+    }
+
+    // Initialize App & PWA
+    window.addEventListener('DOMContentLoaded', () => {
+      initPWA();
+      setupPreviewBanner();
+      
+      // Auto login in preview mode for smooth testing, or check auth state
+      if (IS_PREVIEW) {
+        currentUser = state.users[0]; // Default to Admin
+        renderAppLayout();
+        navigate('dashboard');
+      } else {
+        checkFirebaseAuth();
+      }
+    });
+
+    function setupPreviewBanner() {
+      const banner = document.getElementById('preview-banner');
+      if (IS_PREVIEW && banner) {
+        banner.classList.remove('hidden');
+      }
+    }
+
+    function initPWA() {
+      // Dynamic Manifest URI
+      const manifest = {
+        name: "E-Presensi SMP NURAENI",
+        short_name: "PresensiNuraeni",
+        start_url: "./",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#16a34a",
+        icons: [
+          { src: "https://placehold.co/192x192/16a34a/ffffff?text=SMP+NURAENI", sizes: "192x192", type: "image/png" },
+          { src: "https://placehold.co/512x512/16a34a/ffffff?text=SMP+NURAENI", sizes: "512x512", type: "image/png" }
+        ]
+      };
+      const stringManifest = JSON.stringify(manifest);
+      const blob = new Blob([stringManifest], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(blob);
+      document.getElementById('manifest-placeholder').setAttribute('href', manifestURL);
+
+      // Register Inline Service Worker via Blob
+      if ('serviceWorker' in navigator) {
+        const swCode = `
+          self.addEventListener('install', (e) => {
+            self.skipWaiting();
+          });
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+          });
+        `;
+        const swBlob = new Blob([swCode], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).catch(err => console.log('SW registration skipped:', err));
+      }
+    }
+
+    // ==========================================
+    // AUTHENTICATION & ROLE MANAGEMENT
+    // ==========================================
+    function checkFirebaseAuth() {
+      if (!auth) return renderLoginPage();
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          // Fetch user details from Firestore
+          try {
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (userDoc.exists()) {
+              currentUser = { id: user.uid, ...userDoc.data() };
+              renderAppLayout();
+              navigate('dashboard');
+            } else {
+              renderLoginPage("Akun Anda belum terdaftar di database Firestore sekolah.");
+            }
+          } catch (e) {
+            renderLoginPage("Gagal memuat profil pengguna.");
+          }
+        } else {
+          renderLoginPage();
+        }
+      });
+    }
+
+    window.handleLoginSubmit = async function(e) {
+      e.preventDefault();
+      const identifier = document.getElementById('login-id').value.trim();
+      const pass = document.getElementById('login-pass').value;
+      const errorEl = document.getElementById('login-error');
+      errorEl.classList.add('hidden');
+
+      if (IS_PREVIEW) {
+        // Mode Preview: Cocokkan email/nuptk & pass
+        const found = state.users.find(u => (u.email === identifier || u.nuptk === identifier) && u.pass === pass);
+        if (found) {
+          currentUser = found;
+          renderAppLayout();
+          navigate('dashboard');
+        } else {
+          errorEl.textContent = "Credential tidak valid. Silakan periksa daftar akun demo.";
+          errorEl.classList.remove('hidden');
+        }
+      } else {
+        // Mode Produksi: Firebase Authentication
+        try {
+          await signInWithEmailAndPassword(auth, identifier, pass);
+        } catch (err) {
+          errorEl.textContent = "Gagal Login: " + err.message;
+          errorEl.classList.remove('hidden');
+        }
+      }
+    };
+
+    window.handleLogout = function() {
+      if (!IS_PREVIEW && auth) {
+        signOut(auth);
+      }
+      currentUser = null;
+      renderLoginPage();
+    };
+
+    function renderLoginPage(msg = "") {
+      const container = document.getElementById('main-content');
+      document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('mobile-nav-bar').classList.add('hidden');
+
+      container.innerHTML = `
+        <div class="min-h-[80vh] flex items-center justify-center py-10 px-4">
+          <div class="glass-panel max-w-md w-full p-8 rounded-3xl shadow-xl space-y-6">
+            <div class="text-center space-y-2">
+              <div class="w-20 h-20 bg-brand-600 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl font-extrabold shadow-lg shadow-brand-500/30">
+                SN
+              </div>
+              <h2 class="text-2xl font-bold tracking-tight text-slate-800 dark:text-slate-100">${state.school.nama_sekolah}</h2>
+              <p class="text-xs text-slate-500">Sistem E-Presensi Guru & Staff Terpadu</p>
+            </div>
+
+            ${msg ? `<div class="p-3 bg-red-50 text-red-600 rounded-xl text-xs">${msg}</div>` : ''}
+            <div id="login-error" class="hidden p-3 bg-red-50 text-red-600 rounded-xl text-xs"></div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Email / NUPTK</label>
+                <input type="text" id="login-id" required class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition" placeholder="Masukkan Email atau NUPTK">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Password</label>
+                <input type="password" id="login-pass" required class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm focus:ring-2 focus:ring-brand-500 outline-none transition" placeholder="••••••••">
+              </div>
+              <button type="submit" class="w-full py-3.5 px-4 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold shadow-lg shadow-brand-600/30 text-sm transition">
+                Masuk Sistem Presensi
+              </button>
+            </form>
+
+            ${IS_PREVIEW ? `
+              <div class="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+                <p class="font-bold text-slate-700 dark:text-slate-300 mb-2">Akun Uji Coba Demo (Mode Preview):</p>
+                <div class="space-y-1 text-[11px] text-slate-600 dark:text-slate-400">
+                  <p><strong>Admin:</strong> admin@nuraeni.sch.id | Pass: admin123</p>
+                  <p><strong>Kepala Sekolah:</strong> kepsek@nuraeni.sch.id | Pass: kepsek123</p>
+                  <p><strong>Guru:</strong> siti.aminah@nuraeni.sch.id | Pass: guru123</p>
+                  <p><strong>Tendik:</strong> ahmad.rizki@nuraeni.sch.id | Pass: tendik123</p>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // ==========================================
+    // LAYOUT & ROUTING SYSTEM
+    // ==========================================
+    function renderAppLayout() {
+      document.getElementById('sidebar').classList.remove('hidden');
+      document.getElementById('mobile-nav-bar').classList.remove('hidden');
+      
+      // Update sidebar headers
+      document.getElementById('sidebar-school-name').textContent = state.school.nama_sekolah;
+      document.getElementById('sidebar-user-role').textContent = currentUser.role === 'kepsek' ? 'Kepala Sekolah' : currentUser.role;
+      document.getElementById('mobile-user-role').textContent = currentUser.role;
+      document.getElementById('sidebar-user-name').textContent = currentUser.nama;
+      document.getElementById('sidebar-user-avatar').textContent = currentUser.nama.charAt(0);
+
+      // Render Dynamic Side Menu & Bottom Navigation based on Role
+      renderNavigationMenu();
+    }
+
+    function renderNavigationMenu() {
+      const desktopNav = document.getElementById('desktop-nav-menu');
+      const mobileNav = document.getElementById('mobile-nav-bar');
+      
+      let menus = [];
+
+      if (currentUser.role === 'admin') {
+        menus = [
+          { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+          { id: 'data-sekolah', label: 'Data Sekolah', icon: 'school' },
+          { id: 'data-guru', label: 'Data Guru', icon: 'users' },
+          { id: 'data-tendik', label: 'Data Tendik', icon: 'user-cog' },
+          { id: 'approval', label: 'Approval Persetujuan', icon: 'check-square' },
+          { id: 'manajemen-user', label: 'Manajemen User', icon: 'shield-check' },
+          { id: 'kalender-libur', label: 'Kalender Libur', icon: 'calendar' },
+          { id: 'rekapan-cetak', label: 'Rekapan & Cetak', icon: 'file-text' },
+          { id: 'konfigurasi-gps', label: 'Konfigurasi Sistem', icon: 'settings' }
+        ];
+      } else if (currentUser.role === 'kepsek') {
+        menus = [
+          { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+          { id: 'data-guru', label: 'Data Guru', icon: 'users' },
+          { id: 'data-tendik', label: 'Data Tendik', icon: 'user-cog' },
+          { id: 'approval', label: 'Approval Persetujuan', icon: 'check-square' },
+          { id: 'rekapan-presensi', label: 'Rekapan Presensi', icon: 'file-text' }
+        ];
+      } else {
+        // Guru & Tendik
+        menus = [
+          { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
+          { id: 'isi-presensi', label: 'Isi Presensi', icon: 'fingerprint' },
+          { id: 'pengajuan', label: 'Pengajuan Izin', icon: 'send' },
+          { id: 'profil-pribadi', label: 'Data Pribadi', icon: 'user' },
+          { id: 'riwayat-presensi', label: 'Riwayat Presensi', icon: 'history' },
+          { id: 'rekapan-presensi', label: 'Rekapan Saya', icon: 'file-text' }
+        ];
+      }
+
+      // Render Desktop Side Bar
+      desktopNav.innerHTML = menus.map(m => `
+        <button onclick="navigate('${m.id}')" id="nav-btn-${m.id}" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-medium transition text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+          <i data-lucide="${m.icon}" class="w-4 h-4"></i>
+          <span>${m.label}</span>
+        </button>
+      `).join('');
+
+      // Render Mobile Bottom Navigation (Show max 5 primary items)
+      const mobileItems = menus.slice(0, 5);
+      mobileNav.innerHTML = mobileItems.map(m => `
+        <button onclick="navigate('${m.id}')" id="mobile-nav-btn-${m.id}" class="flex flex-col items-center gap-1 p-2 text-[10px] font-medium text-slate-500">
+          <i data-lucide="${m.icon}" class="w-5 h-5"></i>
+          <span>${m.label.split(' ')[0]}</span>
+        </button>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    window.navigate = function(viewId) {
+      currentView = viewId;
+
+      // Update Nav active styles
+      document.querySelectorAll('#desktop-nav-menu button').forEach(btn => {
+        btn.classList.remove('bg-brand-600', 'text-white', 'hover:bg-brand-700');
+        btn.classList.add('text-slate-600', 'dark:text-slate-400');
+      });
+      const activeDesktopBtn = document.getElementById(`nav-btn-${viewId}`);
+      if (activeDesktopBtn) {
+        activeDesktopBtn.classList.add('bg-brand-600', 'text-white');
+        activeDesktopBtn.classList.remove('text-slate-600', 'dark:text-slate-400');
+      }
+
+      // Render Views
+      const container = document.getElementById('main-content');
+      switch(viewId) {
+        case 'dashboard': renderDashboard(container); break;
+        case 'data-sekolah': renderDataSekolah(container); break;
+        case 'data-guru': renderDataGTK(container, 'guru'); break;
+        case 'data-tendik': renderDataGTK(container, 'tendik'); break;
+        case 'approval': renderApproval(container); break;
+        case 'manajemen-user': renderManajemenUser(container); break;
+        case 'kalender-libur': renderKalenderLibur(container); break;
+        case 'rekapan-cetak':
+        case 'rekapan-presensi': renderRekapanPresensi(container); break;
+        case 'konfigurasi-gps': renderKonfigurasiGPS(container); break;
+        case 'isi-presensi': renderIsiPresensi(container); break;
+        case 'pengajuan': renderPengajuan(container); break;
+        case 'profil-pribadi': renderProfilPribadi(container); break;
+        case 'riwayat-presensi': renderRiwayatPresensi(container); break;
+        default: renderDashboard(container); break;
+      }
+      lucide.createIcons();
+    };
+
+    // ==========================================
+    // VIEWS IMPLEMENTATION
+    // ==========================================
+
+    // 1. DASHBOARD
+    function renderDashboard(container) {
+      const today = getTodayDateString();
+      const totalGuru = state.users.filter(u => u.role === 'guru').length;
+      const totalTendik = state.users.filter(u => u.role === 'tendik').length;
+      const todayAtt = state.attendances.filter(a => a.tanggal === today);
+      const totalHadir = todayAtt.filter(a => a.status === 'Hadir' || a.status === 'Terlambat').length;
+      const pendingSub = state.submissions.filter(s => s.status === 'Pending').length;
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">Selamat Datang, ${currentUser.nama}</h2>
+              <p class="text-xs text-slate-500">Ringkasan aktivitas E-Presensi ${state.school.nama_sekolah} hari ini.</p>
+            </div>
+            <div class="px-4 py-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm text-xs border font-medium flex items-center gap-2">
+              <i data-lucide="calendar" class="w-4 h-4 text-brand-600"></i>
+              <span>${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="glass-panel p-4 rounded-2xl border space-y-2">
+              <div class="flex items-center justify-between text-slate-500">
+                <span class="text-xs font-semibold">Total GTK & PTK</span>
+                <i data-lucide="users" class="w-4 h-4 text-brand-600"></i>
+              </div>
+              <p class="text-2xl font-bold">${totalGuru + totalTendik}</p>
+              <p class="text-[10px] text-slate-400">${totalGuru} Guru | ${totalTendik} Tendik</p>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border space-y-2">
+              <div class="flex items-center justify-between text-slate-500">
+                <span class="text-xs font-semibold">Hadir Hari Ini</span>
+                <i data-lucide="user-check" class="w-4 h-4 text-emerald-600"></i>
+              </div>
+              <p class="text-2xl font-bold text-emerald-600">${totalHadir}</p>
+              <p class="text-[10px] text-slate-400">Persentase: ${Math.round((totalHadir/(totalGuru+totalTendik||1))*100)}%</p>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border space-y-2">
+              <div class="flex items-center justify-between text-slate-500">
+                <span class="text-xs font-semibold">Pengajuan Pending</span>
+                <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
+              </div>
+              <p class="text-2xl font-bold text-amber-500">${pendingSub}</p>
+              <p class="text-[10px] text-slate-400">Perlu persetujuan</p>
+            </div>
+
+            <div class="glass-panel p-4 rounded-2xl border space-y-2">
+              <div class="flex items-center justify-between text-slate-500">
+                <span class="text-xs font-semibold">Radius GPS Sekolah</span>
+                <i data-lucide="map-pin" class="w-4 h-4 text-blue-500"></i>
+              </div>
+              <p class="text-2xl font-bold text-blue-600">${state.gps.radius_meter}m</p>
+              <p class="text-[10px] text-slate-400">Jarak Maksimal Presensi</p>
+            </div>
+          </div>
+
+          <!-- Quick Action Card for Teachers -->
+          ${(currentUser.role === 'guru' || currentUser.role === 'tendik') ? `
+            <div class="glass-panel p-6 rounded-2xl border bg-gradient-to-r from-brand-600 to-emerald-700 text-white flex flex-col md:flex-row items-center justify-between gap-4">
+              <div class="space-y-1">
+                <h3 class="font-bold text-lg">Siap Melakukan Presensi Harian?</h3>
+                <p class="text-xs text-brand-100">Pastikan Anda berada dalam radius sekolah untuk melakukan Check-In / Check-Out.</p>
+              </div>
+              <button onclick="navigate('isi-presensi')" class="px-6 py-3 bg-white text-brand-700 hover:bg-brand-50 rounded-xl font-bold text-xs shadow-md transition">
+                Buka Kamera & GPS Presensi
+              </button>
+            </div>
+          ` : ''}
+
+          <!-- Presensi Real-Time Hari Ini Table -->
+          <div class="glass-panel p-5 rounded-2xl border space-y-4">
+            <h3 class="font-bold text-sm flex items-center gap-2">
+              <i data-lucide="list" class="w-4 h-4 text-brand-600"></i>
+              Presensi Real-Time Hari Ini (${today})
+            </h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400">
+                    <th class="py-3 px-3">Nama GTK/PTK</th>
+                    <th class="py-3 px-3">Jabatan</th>
+                    <th class="py-3 px-3">Jam Masuk</th>
+                    <th class="py-3 px-3">Jam Pulang</th>
+                    <th class="py-3 px-3">Status</th>
+                    <th class="py-3 px-3">Jarak GPS</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  ${todayAtt.length ? todayAtt.map(a => `
+                    <tr>
+                      <td class="py-3 px-3 font-semibold">${a.nama}</td>
+                      <td class="py-3 px-3 capitalize">${a.role}</td>
+                      <td class="py-3 px-3 text-emerald-600 font-medium">${a.jam_masuk || '-'}</td>
+                      <td class="py-3 px-3 text-blue-600 font-medium">${a.jam_pulang || '-'}</td>
+                      <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${a.status==='Hadir'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-700'}">
+                          ${a.status}
+                        </span>
+                      </td>
+                      <td class="py-3 px-3 text-slate-500">${a.jarak_meter} meter</td>
+                    </tr>
+                  `).join('') : `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada presensi tercatat hari ini.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. DATA SEKOLAH (Admin Only CRUD)
+    function renderDataSekolah(container) {
+      if (currentUser.role !== 'admin') return renderAccessDenied(container);
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold tracking-tight">Profil & Data Sekolah</h2>
+            <button onclick="saveDataSekolah()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i> Simpan Perubahan
+            </button>
+          </div>
+
+          <div class="glass-panel p-6 rounded-2xl border space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Nama Sekolah</label>
+                <input type="text" id="sch-nama" value="${state.school.nama_sekolah}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">NPSN</label>
+                <input type="text" id="sch-npsn" value="${state.school.npsn}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Email Sekolah</label>
+                <input type="email" id="sch-email" value="${state.school.email}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Website Sekolah</label>
+                <input type="text" id="sch-web" value="${state.school.website}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Nama Kepala Sekolah</label>
+                <input type="text" id="sch-kepsek" value="${state.school.nama_kepsek}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">URL Logo Sekolah</label>
+                <input type="text" id="sch-logo" value="${state.school.logo_url}" placeholder="https://..." class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Alamat Lengkap</label>
+              <textarea id="sch-alamat" rows="3" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">${state.school.alamat}</textarea>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.saveDataSekolah = function() {
+      state.school = {
+        nama_sekolah: document.getElementById('sch-nama').value,
+        npsn: document.getElementById('sch-npsn').value,
+        email: document.getElementById('sch-email').value,
+        website: document.getElementById('sch-web').value,
+        nama_kepsek: document.getElementById('sch-kepsek').value,
+        logo_url: document.getElementById('sch-logo').value,
+        alamat: document.getElementById('sch-alamat').value
+      };
+      showNotification("Data Sekolah Berhasil Diperbarui!");
+      renderAppLayout();
+    };
+
+    // 3. DATA GURU / TENDIK (CRUD Admin, Read-Only Kepsek)
+    function renderDataGTK(container, targetRole) {
+      const isReadOnly = currentUser.role === 'kepsek';
+      const list = state.users.filter(u => u.role === targetRole);
+      const title = targetRole === 'guru' ? 'Data Guru (GTK)' : 'Data Tenaga Kependidikan (PTK)';
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">${title}</h2>
+              <p class="text-xs text-slate-500">Kelola informasi ${title} SMP NURAENI</p>
+            </div>
+            ${!isReadOnly ? `
+              <button onclick="openModalGTKForm('${targetRole}')" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Tambah ${targetRole.toUpperCase()}
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="glass-panel rounded-2xl border overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 dark:bg-slate-800 text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                    <th class="py-3 px-4">Nama Lengkap</th>
+                    <th class="py-3 px-4">NUPTK</th>
+                    <th class="py-3 px-4">JK</th>
+                    <th class="py-3 px-4">Email Belajar ID</th>
+                    <th class="py-3 px-4">Jabatan</th>
+                    <th class="py-3 px-4">No. Telepon</th>
+                    ${!isReadOnly ? `<th class="py-3 px-4 text-center">Aksi</th>` : ''}
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  ${list.map(u => `
+                    <tr>
+                      <td class="py-3 px-4 font-semibold">${u.nama}</td>
+                      <td class="py-3 px-4 font-mono">${u.nuptk || '-'}</td>
+                      <td class="py-3 px-4">${u.jk}</td>
+                      <td class="py-3 px-4 text-blue-600">${u.email}</td>
+                      <td class="py-3 px-4">${u.jabatan}</td>
+                      <td class="py-3 px-4">${u.no_hp}</td>
+                      ${!isReadOnly ? `
+                        <td class="py-3 px-4 text-center space-x-1">
+                          <button onclick="openModalGTKForm('${targetRole}', '${u.id}')" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                          <button onclick="deleteUser('${u.id}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </td>
+                      ` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.openModalGTKForm = function(role, id = null) {
+      const user = id ? state.users.find(u => u.id === id) : null;
+      const modal = document.getElementById('modal-container');
+      
+      modal.innerHTML = `
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="font-bold text-sm">${user ? 'Edit' : 'Tambah'} ${role.toUpperCase()}</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+          </div>
+          <form onsubmit="saveGTK(event, '${role}', '${id || ''}')" class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold mb-1">Nama Lengkap</label>
+              <input type="text" id="gtk-nama" value="${user?.nama||''}" required class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-1">NUPTK</label>
+                <input type="text" id="gtk-nuptk" value="${user?.nuptk||''}" required class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block font-semibold mb-1">Jenis Kelamin</label>
+                <select id="gtk-jk" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+                  <option value="L" ${user?.jk==='L'?'selected':''}>Laki-laki</option>
+                  <option value="P" ${user?.jk==='P'?'selected':''}>Perempuan</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block font-semibold mb-1">Email Belajar ID</label>
+              <input type="email" id="gtk-email" value="${user?.email||''}" required class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-1">Tempat Lahir</label>
+                <input type="text" id="gtk-tempat" value="${user?.tempat_lahir||''}" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block font-semibold mb-1">Tanggal Lahir</label>
+                <input type="date" id="gtk-tgl" value="${user?.tgl_lahir||''}" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-1">Jabatan</label>
+                <input type="text" id="gtk-jabatan" value="${user?.jabatan||''}" required class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block font-semibold mb-1">No. Telepon (WA)</label>
+                <input type="text" id="gtk-hp" value="${user?.no_hp||''}" class="w-full p-2.5 border rounded-xl outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-2">
+              <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl hover:bg-slate-100">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold">Simpan Data</button>
+            </div>
+          </form>
+        </div>
+      `;
+      openModal();
+      lucide.createIcons();
+    };
+
+    window.saveGTK = function(e, role, id) {
+      e.preventDefault();
+      const payload = {
+        nama: document.getElementById('gtk-nama').value,
+        nuptk: document.getElementById('gtk-nuptk').value,
+        jk: document.getElementById('gtk-jk').value,
+        email: document.getElementById('gtk-email').value,
+        tempat_lahir: document.getElementById('gtk-tempat').value,
+        tgl_lahir: document.getElementById('gtk-tgl').value,
+        jabatan: document.getElementById('gtk-jabatan').value,
+        no_hp: document.getElementById('gtk-hp').value,
+        role: role,
+        pass: "123456" // Default password
+      };
+
+      if (id) {
+        const idx = state.users.findIndex(u => u.id === id);
+        if (idx !== -1) state.users[idx] = { ...state.users[idx], ...payload };
+      } else {
+        payload.id = 'u_' + Date.now();
+        state.users.push(payload);
+      }
+      closeModal();
+      showNotification("Data berhasil disimpan.");
+      navigate(role === 'guru' ? 'data-guru' : 'data-tendik');
+    };
+
+    window.deleteUser = function(id) {
+      if (confirm("Apakah Anda yakin ingin menghapus data ini?")) {
+        state.users = state.users.filter(u => u.id !== id);
+        showNotification("Data dihapus.");
+        renderNavigationMenu();
+        navigate(currentView);
+      }
+    };
+
+    // 4. APPROVAL PERSETUJUAN (Admin & Kepsek)
+    function renderApproval(container) {
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div>
+            <h2 class="text-xl font-bold tracking-tight">Approval Persetujuan Izin / Sakit / Dinas</h2>
+            <p class="text-xs text-slate-500">Persetujuan pengajuan ketidakhadiran dari Guru & Staff</p>
+          </div>
+
+          <div class="glass-panel rounded-2xl border overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 dark:bg-slate-800 text-slate-500 border-b">
+                    <th class="py-3 px-4">Pemohon</th>
+                    <th class="py-3 px-4">Jenis Pengajuan</th>
+                    <th class="py-3 px-4">Tanggal Tanggal</th>
+                    <th class="py-3 px-4">Keterangan</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4 text-center">Aksi Persetujuan</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  ${state.submissions.map(s => `
+                    <tr>
+                      <td class="py-3 px-4 font-semibold">${s.nama}</td>
+                      <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-blue-100 text-blue-700 font-semibold text-[10px]">${s.jenis}</span></td>
+                      <td class="py-3 px-4">${s.tgl_mulai} s/d ${s.tgl_selesai}</td>
+                      <td class="py-3 px-4">${s.keterangan}</td>
+                      <td class="py-3 px-4">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status==='Approved'?'bg-emerald-100 text-emerald-700':s.status==='Rejected'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">
+                          ${s.status}
+                        </span>
+                      </td>
+                      <td class="py-3 px-4 text-center space-x-1">
+                        ${s.status === 'Pending' ? `
+                          <button onclick="approveSubmission('${s.id}', 'Approved')" class="px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-[10px]">Setujui</button>
+                          <button onclick="approveSubmission('${s.id}', 'Rejected')" class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-[10px]">Tolak</button>
+                        ` : `<span class="text-slate-400 text-[10px]">Selesai oleh ${s.approved_by}</span>`}
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.approveSubmission = function(id, newStatus) {
+      const item = state.submissions.find(s => s.id === id);
+      if (item) {
+        item.status = newStatus;
+        item.approved_by = currentUser.nama;
+        showNotification(`Pengajuan telah di-${newStatus}`);
+        navigate('approval');
+      }
+    };
+
+    // 5. ISI PRESENSI (Guru & Tendik)
+    function renderIsiPresensi(container) {
+      const today = getTodayDateString();
+      const myAtt = state.attendances.find(a => a.user_id === currentUser.id && a.tanggal === today);
+
+      container.innerHTML = `
+        <div class="space-y-6 max-w-xl mx-auto">
+          <div class="text-center space-y-1">
+            <h2 class="text-xl font-bold tracking-tight">Presensi Lokasi GPS</h2>
+            <p class="text-xs text-slate-500">Pastikan GPS aktif & berada di dalam area radius ${state.school.nama_sekolah}</p>
+          </div>
+
+          <!-- GPS Location Live Box -->
+          <div class="glass-panel p-6 rounded-3xl border text-center space-y-4">
+            <div id="gps-status-box" class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs space-y-2">
+              <i data-lucide="map-pin" class="w-8 h-8 mx-auto text-brand-600 animate-bounce"></i>
+              <p class="font-semibold" id="gps-status-text">Mendeteksi koordinat GPS Anda...</p>
+              <p class="text-[10px] text-slate-400" id="gps-coord-text">Lat: - | Lng: -</p>
+            </div>
+
+            <!-- Realtime Clock -->
+            <div class="text-center space-y-1">
+              <div class="text-3xl font-extrabold font-mono tracking-wider text-brand-700 dark:text-brand-400" id="live-clock">00:00:00</div>
+              <p class="text-xs text-slate-400">${getTodayDateString()}</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid grid-cols-2 gap-4 pt-2">
+              <button id="btn-checkin" onclick="processPresensi('masuk')" ${myAtt?.jam_masuk ? 'disabled' : ''} class="py-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-600/30 transition">
+                Check-In (Masuk)<br>
+                <span class="text-[10px] font-normal">${myAtt?.jam_masuk ? 'Sudah Masuk: '+myAtt.jam_masuk : 'Klik untuk Masuk'}</span>
+              </button>
+
+              <button id="btn-checkout" onclick="processPresensi('pulang')" ${(!myAtt?.jam_masuk || myAtt?.jam_pulang) ? 'disabled' : ''} class="py-4 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-2xl font-bold text-sm shadow-lg shadow-blue-600/30 transition">
+                Check-Out (Pulang)<br>
+                <span class="text-[10px] font-normal">${myAtt?.jam_pulang ? 'Sudah Pulang: '+myAtt.jam_pulang : 'Klik untuk Pulang'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      startLiveClock();
+      checkUserLocation();
+    }
+
+    let currentLat = null, currentLng = null, currentDistance = 9999;
+
+    function startLiveClock() {
+      const clockEl = document.getElementById('live-clock');
+      setInterval(() => {
+        if (clockEl) {
+          const d = new Date();
+          clockEl.textContent = d.toTimeString().split(' ')[0];
+        }
+      }, 1000);
+    }
+
+    function checkUserLocation() {
+      const statusText = document.getElementById('gps-status-text');
+      const coordText = document.getElementById('gps-coord-text');
+
+      if (!navigator.geolocation) {
+        if (statusText) statusText.textContent = "Geolokasi tidak didukung oleh browser Anda.";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition((pos) => {
+        currentLat = pos.coords.latitude;
+        currentLng = pos.coords.longitude;
+        currentDistance = Math.round(haversineDistance(currentLat, currentLng, state.gps.lat, state.gps.lng));
+
+        if (coordText) coordText.textContent = `Lat: ${currentLat.toFixed(5)} | Lng: ${currentLng.toFixed(5)}`;
+        
+        if (currentDistance <= state.gps.radius_meter) {
+          if (statusText) {
+            statusText.className = "font-bold text-emerald-600";
+            statusText.textContent = `Anda di dalam lokasi sekolah (${currentDistance}m dari pusat GPS)`;
+          }
+        } else {
+          if (statusText) {
+            statusText.className = "font-bold text-amber-600";
+            statusText.textContent = `Anda di luar area radius (${currentDistance}m / Maks: ${state.gps.radius_meter}m)`;
+          }
+        }
+      }, (err) => {
+        // Fallback for demo preview mode if GPS permission is denied or simulated
+        currentLat = state.gps.lat;
+        currentLng = state.gps.lng;
+        currentDistance = 15;
+        if (statusText) {
+          statusText.className = "font-bold text-emerald-600";
+          statusText.textContent = `GPS Uji Coba: Berada dalam radius (${currentDistance}m)`;
+        }
+      });
+    }
+
+    // Haversine Distance Formula in Meters
+    function haversineDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Earth radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    window.processPresensi = function(type) {
+      if (currentDistance > state.gps.radius_meter) {
+        showNotification(`Gagal: Jarak Anda (${currentDistance}m) melebihi batas radius (${state.gps.radius_meter}m).`, 'error');
+        return;
+      }
+
+      const today = getTodayDateString();
+      const timeNow = new Date().toTimeString().split(' ')[0];
+      let myAtt = state.attendances.find(a => a.user_id === currentUser.id && a.tanggal === today);
+
+      if (type === 'masuk') {
+        if (!myAtt) {
+          const isTerlambat = parseInt(timeNow.replace(/:/g, '')) > 71500; // > 07:15:00
+          state.attendances.push({
+            id: 'att_' + Date.now(),
+            user_id: currentUser.id,
+            nama: currentUser.nama,
+            role: currentUser.role,
+            tanggal: today,
+            jam_masuk: timeNow,
+            jam_pulang: '',
+            lat_masuk: currentLat,
+            lng_masuk: currentLng,
+            status: isTerlambat ? 'Terlambat' : 'Hadir',
+            jarak_meter: currentDistance
+          });
+          showNotification(`Check-In Berhasil pada pukul ${timeNow}!`);
+        }
+      } else if (type === 'pulang') {
+        if (myAtt) {
+          myAtt.jam_pulang = timeNow;
+          myAtt.lat_pulang = currentLat;
+          myAtt.lng_pulang = currentLng;
+          showNotification(`Check-Out Pulang Berhasil pada pukul ${timeNow}!`);
+        }
+      }
+      navigate('isi-presensi');
+    };
+
+    // 6. PENGAJUAN IZIN / SAKIT (Guru & Tendik)
+    function renderPengajuan(container) {
+      const mySubs = state.submissions.filter(s => s.user_id === currentUser.id);
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">Pengajuan Izin / Sakit / Dinas</h2>
+              <p class="text-xs text-slate-500">Ajukan permohonan ketidakhadiran secara resmi</p>
+            </div>
+            <button onclick="openModalPengajuanForm()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i> Buat Pengajuan
+            </button>
+          </div>
+
+          <div class="glass-panel rounded-2xl border overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 dark:bg-slate-800 text-slate-500 border-b">
+                    <th class="py-3 px-4">Jenis</th>
+                    <th class="py-3 px-4">Tgl Mulai</th>
+                    <th class="py-3 px-4">Tgl Selesai</th>
+                    <th class="py-3 px-4">Keterangan</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4">Disetujui Oleh</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  ${mySubs.length ? mySubs.map(s => `
+                    <tr>
+                      <td class="py-3 px-4 font-semibold">${s.jenis}</td>
+                      <td class="py-3 px-4">${s.tgl_mulai}</td>
+                      <td class="py-3 px-4">${s.tgl_selesai}</td>
+                      <td class="py-3 px-4">${s.keterangan}</td>
+                      <td class="py-3 px-4">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${s.status==='Approved'?'bg-emerald-100 text-emerald-700':s.status==='Rejected'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">
+                          ${s.status}
+                        </span>
+                      </td>
+                      <td class="py-3 px-4 text-slate-500">${s.approved_by || '-'}</td>
+                    </tr>
+                  `).join('') : `<tr><td colspan="6" class="text-center py-6 text-slate-400">Belum ada pengajuan.</td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.openModalPengajuanForm = function() {
+      const modal = document.getElementById('modal-container');
+      modal.innerHTML = `
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between border-b pb-3">
+            <h3 class="font-bold text-sm">Form Pengajuan Ketidakhadiran</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+          </div>
+          <form onsubmit="savePengajuan(event)" class="space-y-3 text-xs">
+            <div>
+              <label class="block font-semibold mb-1">Jenis Ketidakhadiran</label>
+              <select id="sub-jenis" class="w-full p-2.5 border rounded-xl outline-none">
+                <option value="Izin">Izin</option>
+                <option value="Sakit">Sakit</option>
+                <option value="Dinas Luar">Dinas Luar</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block font-semibold mb-1">Tanggal Mulai</label>
+                <input type="date" id="sub-tgl-mulai" required class="w-full p-2.5 border rounded-xl outline-none">
+              </div>
+              <div>
+                <label class="block font-semibold mb-1">Tanggal Selesai</label>
+                <input type="date" id="sub-tgl-selesai" required class="w-full p-2.5 border rounded-xl outline-none">
+              </div>
+            </div>
+            <div>
+              <label class="block font-semibold mb-1">Keterangan / Alasan</label>
+              <textarea id="sub-keterangan" rows="3" required class="w-full p-2.5 border rounded-xl outline-none" placeholder="Jelaskan alasan pengajuan..."></textarea>
+            </div>
+            <div class="pt-4 flex justify-end gap-2">
+              <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl">Batal</button>
+              <button type="submit" class="px-4 py-2 bg-brand-600 text-white rounded-xl font-semibold">Kirim Pengajuan</button>
+            </div>
+          </form>
+        </div>
+      `;
+      openModal();
+      lucide.createIcons();
+    };
+
+    window.savePengajuan = function(e) {
+      e.preventDefault();
+      state.submissions.push({
+        id: 'sub_' + Date.now(),
+        user_id: currentUser.id,
+        nama: currentUser.nama,
+        jenis: document.getElementById('sub-jenis').value,
+        tgl_mulai: document.getElementById('sub-tgl-mulai').value,
+        tgl_selesai: document.getElementById('sub-tgl-selesai').value,
+        keterangan: document.getElementById('sub-keterangan').value,
+        bukti_url: '',
+        status: 'Pending',
+        approved_by: ''
+      });
+      closeModal();
+      showNotification("Pengajuan berhasil dikirim.");
+      navigate('pengajuan');
+    };
+
+    // 7. REKAPAN PRESENSI & CETAK LAPORAN PDF
+    function renderRekapanPresensi(container) {
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">Rekapan & Cetak Laporan Presensi</h2>
+              <p class="text-xs text-slate-500">Filter dan ekspor laporan presensi ${state.school.nama_sekolah}</p>
+            </div>
+            <button onclick="cetakLaporanPDF()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+              <i data-lucide="printer" class="w-4 h-4"></i> Cetak PDF Laporan
+            </button>
+          </div>
+
+          <!-- Filter Options -->
+          <div class="glass-panel p-4 rounded-2xl border flex flex-wrap gap-3 items-center text-xs">
+            <div>
+              <label class="font-semibold text-slate-500 mr-2">Filter Periode:</label>
+              <select id="filter-periode" onchange="filterRekapan()" class="p-2 border rounded-xl outline-none">
+                <option value="harian">Hari Ini</option>
+                <option value="bulanan" selected>Bulan Ini</option>
+                <option value="semua">Semua Riwayat</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Printable Area -->
+          <div id="printable-area" class="glass-panel p-6 rounded-2xl border space-y-4 bg-white text-slate-900">
+            <!-- Header Cop Surat Sekolah (PDF) -->
+            <div class="text-center border-b pb-4 mb-4 space-y-1">
+              <h1 class="text-lg font-bold tracking-tight">${state.school.nama_sekolah}</h1>
+              <p class="text-[11px] text-slate-600">${state.school.alamat}</p>
+              <p class="text-[10px] text-slate-500">NPSN: ${state.school.npsn} | Email: ${state.school.email}</p>
+              <h2 class="text-xs font-bold pt-2 uppercase underline">Laporan Rekapitulasi Presensi Kehadiran</h2>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="border-b border-slate-300 bg-slate-50">
+                    <th class="py-2.5 px-3">Tanggal</th>
+                    <th class="py-2.5 px-3">Nama GTK/PTK</th>
+                    <th class="py-2.5 px-3">Role</th>
+                    <th class="py-2.5 px-3">Jam Masuk</th>
+                    <th class="py-2.5 px-3">Jam Pulang</th>
+                    <th class="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="rekapan-table-body" class="divide-y divide-slate-200">
+                  ${renderRekapanRows(state.attendances)}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="pt-8 flex justify-end text-xs">
+              <div class="text-center space-y-12">
+                <p>Bandung, ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}<br>Kepala Sekolah,</p>
+                <p class="font-bold underline">${state.school.nama_kepsek}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRekapanRows(list) {
+      let filtered = list;
+      if (currentUser.role === 'guru' || currentUser.role === 'tendik') {
+        filtered = list.filter(a => a.user_id === currentUser.id);
+      }
+      return filtered.map(a => `
+        <tr>
+          <td class="py-2 px-3">${a.tanggal}</td>
+          <td class="py-2 px-3 font-semibold">${a.nama}</td>
+          <td class="py-2 px-3 uppercase text-[10px]">${a.role}</td>
+          <td class="py-2 px-3">${a.jam_masuk || '-'}</td>
+          <td class="py-2 px-3">${a.jam_pulang || '-'}</td>
+          <td class="py-2 px-3 font-semibold">${a.status}</td>
+        </tr>
+      `).join('');
+    }
+
+    window.filterRekapan = function() {
+      const mode = document.getElementById('filter-periode').value;
+      const today = getTodayDateString();
+      let filtered = [...state.attendances];
+
+      if (mode === 'harian') {
+        filtered = filtered.filter(a => a.tanggal === today);
+      }
+      document.getElementById('rekapan-table-body').innerHTML = renderRekapanRows(filtered);
+    };
+
+    window.cetakLaporanPDF = function() {
+      const element = document.getElementById('printable-area');
+      const opt = {
+        margin:       0.5,
+        filename:     `Laporan_Presensi_SMP_NURAENI_${getTodayDateString()}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    };
+
+    // 8. KONFIGURASI GPS (Admin Only)
+    function renderKonfigurasiGPS(container) {
+      if (currentUser.role !== 'admin') return renderAccessDenied(container);
+
+      container.innerHTML = `
+        <div class="space-y-6 max-w-2xl">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold tracking-tight">Konfigurasi Radius GPS Sekolah</h2>
+            <button onclick="saveGPSConfig()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i> Simpan Konfigurasi
+            </button>
+          </div>
+
+          <div class="glass-panel p-6 rounded-2xl border space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Latitude Koordinat Sekolah</label>
+                <input type="number" step="any" id="gps-lat" value="${state.gps.lat}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Longitude Koordinat Sekolah</label>
+                <input type="number" step="any" id="gps-lng" value="${state.gps.lng}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Batas Radius Jarak Presensi (Dalam Meter)</label>
+              <input type="number" id="gps-radius" value="${state.gps.radius_meter}" class="w-full px-4 py-2.5 rounded-xl border text-xs bg-white dark:bg-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+              <p class="text-[10px] text-slate-400 mt-1">GTK/PTK tidak dapat melakukan Check-In jika jarak GPS perangkat melebihi angka ini.</p>
+            </div>
+            <button onclick="setGPSCurrentLocation()" class="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-slate-200">
+              <i data-lucide="crosshair" class="w-4 h-4"></i> Gunakan Lokasi GPS Perangkat Ini Sekarang
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    window.saveGPSConfig = function() {
+      state.gps.lat = parseFloat(document.getElementById('gps-lat').value);
+      state.gps.lng = parseFloat(document.getElementById('gps-lng').value);
+      state.gps.radius_meter = parseInt(document.getElementById('gps-radius').value);
+      showNotification("Konfigurasi GPS Sekolah Diperbarui!");
+    };
+
+    window.setGPSCurrentLocation = function() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          document.getElementById('gps-lat').value = pos.coords.latitude;
+          document.getElementById('gps-lng').value = pos.coords.longitude;
+          showNotification("Koordinat GPS berhasil disesuaikan dengan posisi perangkat!");
+        });
+      }
+    };
+
+    // 9. MANAJEMEN USER (Admin Only)
+    function renderManajemenUser(container) {
+      if (currentUser.role !== 'admin') return renderAccessDenied(container);
+
+      container.innerHTML = `
+        <div class="space-y-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-xl font-bold tracking-tight">Manajemen User System</h2>
+              <p class="text-xs text-slate-500">Pengelolaan credential dan hak akses role pengguna</p>
+            </div>
+          </div>
+
+          <div class="glass-panel rounded-2xl border overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-100 dark:bg-slate-800 text-slate-500 border-b">
+                    <th class="py-3 px-4">Nama Pengguna</th>
+                    <th class="py-3 px-4">Email / ID</th>
+                    <th class="py-3 px-4">Role Hak Akses</th>
+                    <th class="py-3 px-4 text-center">Status Pass</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                  ${state.users.map(u => `
+                    <tr>
+                      <td class="py-3 px-4 font-semibold">${u.nama}</td>
+                      <td class="py-3 px-4 text-blue-600">${u.email}</td>
+                      <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-bold capitalize text-[10px]">${u.role}</span></td>
+                      <td class="py-3 px-4 text-center">
+                        <button onclick="resetUserPass('${u.id}')" class="px-3 py-1 border rounded-lg text-slate-600 hover:bg-slate-100 text-[10px]">Reset Password</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    window.resetUserPass = function(id) {
+      const u = state.users.find(x => x.id === id);
+      if (u) {
+        u.pass = "123456";
+        showNotification(`Password ${u.nama} di-reset menjadi: 123456`);
+      }
+    };
+
+    // 10. KALENDER LIBUR (Admin Only)
+    function renderKalenderLibur(container) {
+      container.innerHTML = `
+        <div class="space-y-6 max-w-2xl">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xl font-bold tracking-tight">Kalender Hari Libur Sekolah</h2>
+            ${currentUser.role === 'admin' ? `
+              <button onclick="addHoliday()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Tambah Libur
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="glass-panel rounded-2xl border overflow-hidden">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100 dark:bg-slate-800 border-b">
+                  <th class="py-3 px-4">Tanggal</th>
+                  <th class="py-3 px-4">Keterangan Hari Libur</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                ${state.holidays.map(h => `
+                  <tr>
+                    <td class="py-3 px-4 font-bold text-red-600">${h.tanggal}</td>
+                    <td class="py-3 px-4">${h.keterangan}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    window.addHoliday = function() {
+      const tgl = prompt("Masukkan Tanggal Libur (YYYY-MM-DD):", getTodayDateString());
+      const ket = prompt("Keterangan Libur:");
+      if (tgl && ket) {
+        state.holidays.push({ id: 'hol_' + Date.now(), tanggal: tgl, keterangan: ket });
+        showNotification("Hari libur ditambahkan.");
+        navigate('kalender-libur');
+      }
+    };
+
+    // 11. PROFIL PRIBADI & RIWAYAT (Guru/Tendik)
+    function renderProfilPribadi(container) {
+      container.innerHTML = `
+        <div class="space-y-6 max-w-xl">
+          <h2 class="text-xl font-bold tracking-tight">Data Profil Saya (Read Only)</h2>
+          <div class="glass-panel p-6 rounded-2xl border space-y-3 text-xs">
+            <div><span class="text-slate-400">Nama Lengkap:</span> <p class="font-semibold text-sm">${currentUser.nama}</p></div>
+            <div><span class="text-slate-400">NUPTK:</span> <p class="font-semibold">${currentUser.nuptk || '-'}</p></div>
+            <div><span class="text-slate-400">Email Belajar ID:</span> <p class="font-semibold text-blue-600">${currentUser.email}</p></div>
+            <div><span class="text-slate-400">Jabatan:</span> <p class="font-semibold capitalize">${currentUser.jabatan}</p></div>
+            <div><span class="text-slate-400">No. Telepon:</span> <p class="font-semibold">${currentUser.no_hp}</p></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRiwayatPresensi(container) {
+      const myLogs = state.attendances.filter(a => a.user_id === currentUser.id);
+      container.innerHTML = `
+        <div class="space-y-6">
+          <h2 class="text-xl font-bold tracking-tight">Riwayat Presensi Pribadi</h2>
+          <div class="glass-panel rounded-2xl border overflow-hidden text-xs">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 dark:bg-slate-800 border-b">
+                  <th class="py-3 px-4">Tanggal</th>
+                  <th class="py-3 px-4">Jam Masuk</th>
+                  <th class="py-3 px-4">Jam Pulang</th>
+                  <th class="py-3 px-4">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                ${myLogs.map(a => `
+                  <tr>
+                    <td class="py-3 px-4 font-semibold">${a.tanggal}</td>
+                    <td class="py-3 px-4 text-emerald-600">${a.jam_masuk || '-'}</td>
+                    <td class="py-3 px-4 text-blue-600">${a.jam_pulang || '-'}</td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px]">${a.status}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    // Helper UI Elements
+    function renderAccessDenied(container) {
+      container.innerHTML = `<div class="p-8 text-center text-red-500 font-bold">Akses Ditolak: Anda tidak memiliki wewenang membuka halaman ini.</div>`;
+    }
+
+    window.openModal = function() {
+      document.getElementById('modal-backdrop').classList.remove('hidden');
+    };
+    window.closeModal = function() {
+      document.getElementById('modal-backdrop').classList.add('hidden');
+    };
+
+    function showNotification(msg, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `fixed bottom-20 right-4 z-50 px-4 py-3 rounded-xl text-white text-xs font-semibold shadow-xl transition transform ${type==='error'?'bg-red-600':'bg-emerald-600'}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+  </script>
+</body>
+</html>
